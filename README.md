@@ -1,5 +1,12 @@
 # OAG-AQA
 
+## Code Changes made from Baseline
+- Added Roberta implementation - need to download roberta.base from the github and update its directory in the config files
+- added processing to split the original training data into train/validation/test data (process.py)
+- added Mean Average Precision Evaluation metric to calculate MAP on new test dataset (evaluation.py)
+- updated all file paths in config files and in the other python files to match up with my ssh server's file paths
+- updated the python files in dpr/models/ to fix issues that were caused when integrating roberta model transformer
+
 ## Prerequisites
 - Linux
 - Python 3.7
