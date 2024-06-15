@@ -1,13 +1,13 @@
 # @package _group_
 
 # model type. One of [hf_bert, pytext_bert, fairseq_roberta]
-encoder_model_type: hf_bert
+encoder_model_type: fairseq_roberta
 
 # HuggingFace's config name for model initialization
-pretrained_model_cfg: /home/akashp/145/OAG-AQA/data/kddcup/bert-base-uncased
+pretrained_model_cfg: /home/akashp/145/OAG-AQA/data/roberta.base
 
 # Some encoders need to be initialized from a file
-pretrained_file: /home/akashp/145/OAG-AQA/data/kddcup/bert-base-uncased
+pretrained_file: /home/akashp/145/OAG-AQA/data/roberta.base
 
 # Extra linear layer on top of standard bert/roberta encoder
 projection_dim: 0

@@ -7,7 +7,7 @@
 
 
 """
- Pipeline to train DPR Biencoder - BERT Encoder
+ Pipeline to train DPR Biencoder - ROBERTA Encoder
 """
 
 import logging
@@ -23,6 +23,9 @@ import torch
 from omegaconf import DictConfig, OmegaConf
 from torch import Tensor as T
 from torch import nn
+
+from torch.cuda.amp import autocast, GradScaler #added
+
 
 from dpr.models import init_biencoder_components
 from dpr.models.biencoder import BiEncoderNllLoss, BiEncoderBatch
@@ -70,6 +73,10 @@ class BiEncoderTrainer(object):
         self.distributed_factor = cfg.distributed_world_size or 1
 
         logger.info("***** Initializing components for training *****")
+        
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(self.device)
+
 
         # if model file is specified, encoder parameters from saved state should be used for initialization
         model_file = get_model_file(cfg, cfg.checkpoint_file_name)
@@ -79,6 +86,10 @@ class BiEncoderTrainer(object):
             set_cfg_params_from_state(saved_state.encoder_params, cfg)
 
         tensorizer, model, optimizer = init_biencoder_components(cfg.encoder.encoder_model_type, cfg)
+        
+        
+        self.scaler = GradScaler() #added
+
 
         model, optimizer = setup_for_distributed_mode(
             model,
@@ -193,9 +204,12 @@ class BiEncoderTrainer(object):
         for epoch in range(self.start_epoch, int(cfg.train.num_train_epochs)):
             logger.info("***** Epoch %d *****", epoch)
             self._train_epoch(scheduler, epoch, eval_step, train_iterator)
+            if (epoch + 1) % 2 == 0:  # Save checkpoints every 1 epoch
+                self.validate_and_save(epoch, 0, scheduler)
 
         if cfg.local_rank in [-1, 0]:
             logger.info("Training finished. Best validation checkpoint %s", self.best_cp_name)
+            self._save_checkpoint(scheduler, epoch, 0)
 
     def validate_and_save(self, epoch: int, iteration: int, scheduler):
         cfg = self.cfg
@@ -486,34 +500,56 @@ class BiEncoderTrainer(object):
             rep_positions = selector.get_positions(biencoder_batch.question_ids, self.tensorizer)
 
             loss_scale = cfg.loss_scale_factors[dataset] if cfg.loss_scale_factors else None
-            loss, correct_cnt = _do_biencoder_fwd_pass(
-                self.biencoder,
-                biencoder_batch,
-                self.tensorizer,
-                cfg,
-                encoder_type=encoder_type,
-                rep_positions=rep_positions,
-                loss_scale=loss_scale,
-            )
+            # Enable mixed-precision training with autocast
+            with autocast():
+                loss, correct_cnt = _do_biencoder_fwd_pass(
+                    self.biencoder,
+                    biencoder_batch,
+                    self.tensorizer,
+                    cfg,
+                    encoder_type=encoder_type,
+                    rep_positions=rep_positions,
+                    loss_scale=loss_scale,
+                )
 
             epoch_correct_predictions += correct_cnt
             epoch_loss += loss.item()
             rolling_train_loss += loss.item()
 
-            # cfg.fp16 = True
-            if cfg.fp16:
-                from apex import amp
-                with amp.scale_loss(loss, self.optimizer) as scaled_loss:
-                    scaled_loss.backward()
-                if cfg.train.max_grad_norm > 0:
-                    torch.nn.utils.clip_grad_norm_(amp.master_params(self.optimizer), cfg.train.max_grad_norm)
-            else:
-                loss.backward()
-                if cfg.train.max_grad_norm > 0:
-                    torch.nn.utils.clip_grad_norm_(self.biencoder.parameters(), cfg.train.max_grad_norm)
+            cfg.fp16 = True
+            # print(cfg.fp16)
+            # if cfg.fp16:
+            #     from apex import amp
+            #     with amp.scale_loss(loss, self.optimizer) as scaled_loss:
+            #         scaled_loss.backward()
+            #     if cfg.train.max_grad_norm > 0:
+            #         torch.nn.utils.clip_grad_norm_(amp.master_params(self.optimizer), cfg.train.max_grad_norm)
+            # else:
+            #     loss.backward()
+            #     if cfg.train.max_grad_norm > 0:
+            #         torch.nn.utils.clip_grad_norm_(self.biencoder.parameters(), cfg.train.max_grad_norm)
+            
+            # Use GradScaler for the backward pass and optimizer step
+            self.scaler.scale(loss).backward()
+            # if cfg.train.max_grad_norm > 0:
+            #     self.scaler.unscale_(self.optimizer)
+            #     torch.nn.utils.clip_grad_norm_(self.biencoder.parameters(), cfg.train.max_grad_norm)
+
 
             if (i + 1) % cfg.train.gradient_accumulation_steps == 0:
-                self.optimizer.step()
+                
+                # Unscale gradients and clip them if necessary
+                if cfg.train.max_grad_norm > 0:
+                    self.scaler.unscale_(self.optimizer)
+                    torch.nn.utils.clip_grad_norm_(self.biencoder.parameters(), cfg.train.max_grad_norm)
+                
+                # self.optimizer.step()
+                # scheduler.step()
+                # self.biencoder.zero_grad()
+                
+                # Update the parameters using the optimizer
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
                 scheduler.step()
                 self.biencoder.zero_grad()
 

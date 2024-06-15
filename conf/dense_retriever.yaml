@@ -1,5 +1,5 @@
 defaults:
-  - encoder: hf_bert # defines encoder initialization parameters
+  - encoder: fairseq_roberta # defines encoder initialization parameters
   - datasets: retriever_default # contains a list of all possible sources of queries for evaluation. Specific set is selected by qa_dataset parameter
   - ctx_sources: default_sources # contains a list of all possible passage sources. Specific passages sources selected by ctx_datatsets parameter
 
@@ -20,9 +20,9 @@ qa_dataset:
 ctx_datatsets:
 
 #Glob paths to encoded passages (from generate_dense_embeddings tool)
-encoded_ctx_files: []
+encoded_ctx_files: [/home/akashp/145/OAG-AQA/outputs/2024-06-14/10-45-49/output_dpr/ctx_encoder_temp.pkl_0]
 
-out_file:
+out_file: /home/akashp/145/OAG-AQA/outputs/2024-06-14/10-45-49/output_dpr/bert_out_25.txt
 # "regex" or "string"
 match: string
 n_docs: 100

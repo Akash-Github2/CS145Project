@@ -1,7 +1,7 @@
 
 # configuration groups
 defaults:
-  - encoder: hf_bert
+  - encoder: fairseq_roberta
   - train: biencoder_default
   - datasets: encoder_train_default
 
@@ -19,8 +19,7 @@ seed: 12345
 checkpoint_file_name: dpr_biencoder
 
 # A trained bi-encoder checkpoint file to initialize the model
-model_file:
-
+model_file: /home/akashp/145/OAG-AQA/outputs/2024-06-14/03-17-37/output_dpr/dpr_biencoder.1
 # TODO: move to a conf group
 # local_rank for distributed training on gpus
 

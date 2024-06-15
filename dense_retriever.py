@@ -59,7 +59,6 @@ def generate_question_vectors(
             batch_questions = questions[batch_start : batch_start + bsz]
 
             if query_token:
-                # TODO: tmp workaround for EL, remove or revise
                 if query_token == "[START_ENT]":
                     batch_tensors = [
                         _select_span_with_token(q, tensorizer, token_str=query_token) for q in batch_questions
@@ -70,15 +69,6 @@ def generate_question_vectors(
                 batch_tensors = [q for q in batch_questions]
             else:
                 batch_tensors = [tensorizer.text_to_tensor(q) for q in batch_questions]
-
-            # TODO: this only works for Wav2vec pipeline but will crash the regular text pipeline
-            # max_vector_len = max(q_t.size(1) for q_t in batch_tensors)
-            # min_vector_len = min(q_t.size(1) for q_t in batch_tensors)
-
-            # if max_vector_len != min_vector_len:
-            #     # TODO: _pad_to_len move to utils
-            #     from dpr.models.reader import _pad_to_len
-            #     batch_tensors = [_pad_to_len(q.squeeze(0), 0, max_vector_len) for q in batch_tensors]
 
             q_ids_batch = torch.stack(batch_tensors, dim=0).cuda()
             q_seg_batch = torch.zeros_like(q_ids_batch).cuda()
@@ -375,13 +365,12 @@ def save_results(
         merged_data.append(results_item)
     
     pids = []
-    with open("/home/zhangfanjin/projects/qa/OAG-AQA/data/kddcup/candidate_papers.tsv") as rf:
+    with open("/home/akashp/145/OAG-AQA/data/kddcup/dpr/candidate_papers.tsv") as rf:
         for i, line in enumerate(rf):
             items = line.strip().split()
             pids.append(items[-1])
 
     with open(out_file, "w") as writer:
-        # writer.write(json.dumps(merged_data, indent=4) + "\n")
         for i, q in enumerate(questions):
             r_pids = [] 
             for c in range(20):
@@ -485,14 +474,23 @@ def get_all_passages(ctx_sources):
 @hydra.main(config_path="conf", config_name="dense_retriever")
 def main(cfg: DictConfig):
     cfg = setup_cfg_gpu(cfg)
+    
     saved_state = load_states_from_checkpoint(cfg.model_file)
-
+    
     set_cfg_params_from_state(saved_state.encoder_params, cfg)
 
     logger.info("CFG (after gpu  configuration):")
     logger.info("%s", OmegaConf.to_yaml(cfg))
 
+    # cfg.encoder.pretrained_model_cfg = "/home/akashp/145/OAG-AQA/data/kddcup/bert-base-uncased"
+    # cfg.encoder.pretrained_file = "/home/akashp/145/OAG-AQA/data/kddcup/bert-base-uncased"
+    
+    # cfg.encoder.pretrained_model_cfg = "/home/akashp/145/OAG-AQA/data/roberta.base"
+    # cfg.encoder.pretrained_file = "/home/akashp/145/OAG-AQA/data/roberta.base"
+
     tensorizer, encoder, _ = init_biencoder_components(cfg.encoder.encoder_model_type, cfg, inference_only=True)
+    
+    print("Encoder Model Type: ", cfg.encoder.encoder_model_type)
 
     logger.info("Loading saved model state ...")
     encoder.load_state(saved_state, strict=False)
@@ -504,10 +502,12 @@ def main(cfg: DictConfig):
     else:
         logger.info("Selecting standard question encoder")
         encoder = encoder.question_model
+    print("Encoder path:", encoder_path)
+    print("Enc:",encoder)
 
     encoder, _ = setup_for_distributed_mode(encoder, None, cfg.device, cfg.n_gpu, cfg.local_rank, cfg.fp16)
     encoder.eval()
-
+    print(encoder)
     model_to_load = get_model_obj(encoder)
     vector_size = model_to_load.get_out_size()
     logger.info("Encoder vector_size=%d", vector_size)
@@ -605,9 +605,11 @@ def main(cfg: DictConfig):
         if index_path:
             retriever.index.serialize(index_path)
 
+
+    print("NEAR END")
     # get top k results
     top_results_and_scores = retriever.get_top_docs(questions_tensor.numpy(), cfg.n_docs)
-
+    print(cfg.out_file)
     if cfg.use_rpc_meta:
         questions_doc_hits = validate_from_meta(
             question_answers,
@@ -662,6 +664,13 @@ def main(cfg: DictConfig):
             raise RuntimeError("No Kilt compatible context file provided")
         assert hasattr(cfg, "kilt_out_file")
         kilt_ctx.convert_to_kilt(qa_src.kilt_gold_file, cfg.out_file, cfg.kilt_out_file)
+        
+    for i, query in enumerate(questions[:5]):
+        print(f"Query: {query}")
+        top_docs = top_results_and_scores[i][0]  # Assuming this contains the top retrieved document IDs
+        print(f"Top Docs: {top_docs}")
+        top_scores = top_results_and_scores[i][1]  # Assuming this contains the scores
+        print(f"Scores: {top_scores}")
 
 
 if __name__ == "__main__":

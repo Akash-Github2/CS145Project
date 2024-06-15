@@ -89,16 +89,21 @@ def main(cfg: DictConfig):
     assert cfg.model_file, "Please specify encoder checkpoint as model_file param"
     assert cfg.ctx_src, "Please specify passages source as ctx_src param"
 
-    cfg = setup_cfg_gpu(cfg)
+    cfg = setup_cfg_gpu(cfg) #where model is being set
+    print("HIHIHI:", cfg.model_file)
 
     saved_state = load_states_from_checkpoint(cfg.model_file)
     set_cfg_params_from_state(saved_state.encoder_params, cfg)
 
     logger.info("CFG:")
     logger.info("%s", OmegaConf.to_yaml(cfg))
-
+    
+    
+    print("Config Model File:", cfg.model_file)
+    print(cfg.encoder.encoder_model_type, cfg)
+    print(cfg.encoder.pretrained_model_cfg)
     tensorizer, encoder, _ = init_biencoder_components(cfg.encoder.encoder_model_type, cfg, inference_only=True)
-
+    print("Stage 2 - Config Model File:", cfg.model_file)
     encoder = encoder.ctx_model if cfg.encoder_type == "ctx" else encoder.question_model
 
     encoder, _ = setup_for_distributed_mode(
@@ -111,6 +116,8 @@ def main(cfg: DictConfig):
         cfg.fp16_opt_level,
     )
     encoder.eval()
+    
+    
 
     # load weights from the model file
     model_to_load = get_model_obj(encoder)

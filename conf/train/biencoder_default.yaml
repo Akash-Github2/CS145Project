@@ -10,6 +10,9 @@ train_rolling_loss_step: 100
 weight_decay: 0.0
 learning_rate: 1e-5
 
+#added adam shit here
+fp16_adam_stats: False
+
 # Linear warmup over warmup_steps.
 warmup_steps: 100
 
@@ -17,7 +20,7 @@ warmup_steps: 100
 gradient_accumulation_steps: 1
 
 # Total number of training epochs to perform.
-num_train_epochs: 30
+num_train_epochs: 25 #was 30 before
 eval_per_epoch: 1
 hard_negatives: 1
 other_negatives: 1

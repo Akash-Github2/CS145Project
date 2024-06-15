@@ -1,10 +1,5 @@
 # @package _group_
 
-nq_test:
-  _target_: dpr.data.retriever_data.CsvQASrc
-  file: /home/shishijie/workspace/project/DPR/dpr/downloads/data/retriever/qas/nq-test.csv
-  #query_special_suffix: '?'
-
 nq_train:
   _target_: dpr.data.retriever_data.CsvQASrc
   file: data.retriever.qas.nq-train
@@ -35,5 +30,5 @@ curatedtrec_test:
 
 stackex_qa_test:
   _target_: dpr.data.retriever_data.CsvQASrc
-  file: /home/zhangfanjin/projects/qa/OAG-AQA/data/kddcup/dpr/qa_valid_dpr.tsv
+  file: /home/akashp/145/OAG-AQA/data/kddcup/dpr/qa_valid_dpr.tsv
 

@@ -1,9 +1,10 @@
 defaults:
-  - encoder: hf_bert
+  - encoder: fairseq_roberta
   - ctx_sources: default_sources
 
 # A trained bi-encoder checkpoint file to initialize the model
-model_file: /home/zhangfanjin/projects/qa/OAG-AQA/outputs/2024-04-15/15-27-08/output_dpr/dpr_biencoder.29
+model_file: /home/akashp/145/OAG-AQA/outputs/2024-06-14/10-45-49/output_dpr/dpr_biencoder.25 #TODO: after train, update this
+# model_file: /home/akashp/145/OAG-AQA/outputs/2024-04-15/15-27-08/output_dpr/dpr_biencoder.29
 
 # Name of the all-passages resource
 ctx_src: dpr_stackex_qa
@@ -12,7 +13,7 @@ ctx_src: dpr_stackex_qa
 encoder_type: ctx
 
 # output .tsv file path to write results to
-out_file: /home/zhangfanjin/projects/qa/OAG-AQA/outputs/2024-04-15/15-27-08/output_dpr/ctx_encoder_29.pkl
+out_file: /home/akashp/145/OAG-AQA/outputs/2024-06-14/10-45-49/output_dpr/ctx_encoder_temp.pkl #TODO: change to dir of model_file
 
 # Whether to lower case the input text. Set True for uncased models, False for the cased ones.
 do_lower_case: True
