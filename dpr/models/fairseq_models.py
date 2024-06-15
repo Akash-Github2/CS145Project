@@ -28,33 +28,24 @@ FairseqOptCfg = collections.namedtuple("FairseqOptCfg", ["lr", "adam_betas", "ad
 
 
 def get_roberta_biencoder_components(args, inference_only: bool = False, **kwargs):
-    print("start")
     print(args.encoder.pretrained_file)
-    print("gay")
     question_encoder = RobertaEncoder.from_pretrained(args.encoder.pretrained_file)
     
     ctx_encoder = RobertaEncoder.from_pretrained(args.encoder.pretrained_file)
-    print("end")
     biencoder = BiEncoder(question_encoder, ctx_encoder)
-    print("end2")
     print(args)
     optimizer = get_fairseq_adamw_optimizer(biencoder, args) if not inference_only else None
-    print("end3")
     tensorizer = get_roberta_tensorizer(
         args.encoder.pretrained_model_cfg, args.do_lower_case, args.encoder.sequence_length
     )
-    print("end4")
     
     return tensorizer, biencoder, optimizer
 
 
 def get_fairseq_adamw_optimizer(model: nn.Module, args):
     print(args)
-    print("gay")
     cfg = FairseqOptCfg(args.train.learning_rate, args.train.adam_betas, args.train.adam_eps, args.train.weight_decay, args.train.fp16_adam_stats)
-    print("done")
     m = FairseqAdam(cfg, model.parameters())
-    print("done2")
     return FairseqAdam(cfg, model.parameters()).optimizer
 
 
